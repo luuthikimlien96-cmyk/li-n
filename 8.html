@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookWorld - Hệ Sinh Thái Sách Số</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Nunito', sans-serif; }
+        .hide { display: none; }
+        
+        /* Hiệu ứng Reader */
+        .reader-dark { background-color: #1a1a1a; color: #e5e5e5; }
+        .reader-sepia { background-color: #f4ecd8; color: #5b4636; }
+        .reader-light { background-color: #ffffff; color: #000000; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Animations */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Loader */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2563eb;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Pricing Card Hover Effect */
+        .pricing-card:hover { transform: translateY(-10px); }
+
+        /* Banner Slider */
+        .banner-slide { display: none; }
+        .banner-slide.active { display: block; animation: fadeIn 0.5s; }
+
+        /* Horizontal Scroll Snap */
+        .snap-x-mandatory { scroll-snap-type: x mandatory; }
+        .snap-center { scroll-snap-align: center; }
+    </style>
+</head>
+<body class="bg-gray-50 flex flex-col min-h-screen text-gray-800">
+
+    <!-- HEADER -->
+    <header class="bg-white shadow-sm sticky top-0 z-40 transition-all duration-300">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center cursor-pointer select-none" onclick="router('home')">
+                    <i class="fa-solid fa-book-open-reader text-3xl text-blue-600 mr-2"></i>
+                    <span class="text-2xl font-extrabold text-gray-800 tracking-tight">BookWorld</span>
+                </div>
+
+                <nav class="hidden md:flex space-x-6 lg:space-x-8">
+                    <button onclick="router('home')" class="nav-link font-semibold hover:text-blue-600 transition">Trang chủ</button>
+                    <button onclick="router('shop')" class="nav-link font-semibold hover:text-blue-600 transition">Sách số</button>
+                    <button onclick="router('reviews')" class="nav-link font-semibold hover:text-blue-600 transition">Góc Review</button> <!-- NEW -->
+                    <button onclick="router('services')" class="nav-link font-semibold hover:text-blue-600 transition">Dịch vụ</button>
+                </nav>
+
+                <div class="flex items-center space-x-4">
+                    <!-- Wishlist Icon -->
+                    <div class="relative cursor-pointer group hidden md:block" onclick="router('profile')">
+                        <i class="fa-regular fa-heart text-xl text-gray-600 group-hover:text-red-500 transition"></i>
+                        <span id="wishlist-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center hidden">0</span>
+                    </div>
+
+                    <!-- Cart Icon -->
+                    <div class="relative cursor-pointer group" onclick="router('cart')">
+                        <i class="fa-solid fa-cart-shopping text-xl text-gray-600 group-hover:text-blue-600 transition"></i>
+                        <span id="cart-count" class="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center transform scale-0 transition-transform duration-200">0</span>
+                    </div>
+                    
+                    <!-- Auth Buttons -->
+                    <div id="auth-buttons" class="hidden md:flex space-x-2">
+                        <button onclick="router('login')" class="px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition">Đăng nhập</button>
+                        <button onclick="router('register')" class="px-4 py-2 text-sm font-bold text-white bg-blue-600 shadow-md hover:bg-blue-700 rounded-lg transition">Đăng ký</button>
+                    </div>
+
+                    <!-- User Menu -->
+                    <div id="user-menu" class="hidden flex items-center space-x-2 cursor-pointer relative" onclick="toggleUserDropdown()">
+                        <img id="user-avatar" src="" class="w-9 h-9 rounded-full border border-gray-300 shadow-sm object-cover">
+                        <span class="font-bold text-sm hidden lg:block truncate max-w-[100px]" id="username-display">User</span>
+                        <!-- Dropdown -->
+                        <div id="user-dropdown" class="absolute top-12 right-0 bg-white shadow-xl rounded-xl w-64 py-2 hidden border border-gray-100 z-50 origin-top-right fade-in">
+                            <div class="px-4 py-3 border-b border-gray-100">
+                                <p class="text-xs text-gray-500">Đăng nhập với</p>
+                                <p class="text-sm font-bold truncate" id="user-email-display">email@example.com</p>
+                            </div>
+                            <button onclick="router('profile')" class="block w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700"><i class="fa-solid fa-user-gear mr-2 text-gray-400"></i> Hồ sơ & Đơn hàng</button>
+                            <button onclick="router('admin')" class="block w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 border-b border-gray-100"><i class="fa-solid fa-gauge mr-2 text-gray-400"></i> Trang Admin</button>
+                            <button onclick="logout()" class="block w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 text-sm font-semibold"><i class="fa-solid fa-right-from-bracket mr-2"></i> Đăng xuất</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- LOADING OVERLAY -->
+    <div id="global-loader" class="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center hidden">
+        <div class="loader mb-4"></div>
+        <p class="text-gray-500 font-semibold animate-pulse">Đang xử lý dữ liệu...</p>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow container mx-auto px-4 py-6 relative min-h-[600px]">
+        
+        <!-- HOME PAGE -->
+        <section id="home" class="page-section fade-in">
+            <!-- 1. MAIN BANNER SLIDER (3 images) -->
+            <div id="main-banner" class="relative w-full h-[300px] md:h-[400px] rounded-2xl overflow-hidden shadow-xl mb-10 group">
+                <!-- Slides injected by JS -->
+                <div id="banner-container"></div>
+                
+                <!-- Controls -->
+                <button onclick="changeBanner(-1)" class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white text-white hover:text-blue-900 p-3 rounded-full backdrop-blur-sm transition opacity-0 group-hover:opacity-100"><i class="fa-solid fa-chevron-left"></i></button>
+                <button onclick="changeBanner(1)" class="absolute right-4 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white text-white hover:text-blue-900 p-3 rounded-full backdrop-blur-sm transition opacity-0 group-hover:opacity-100"><i class="fa-solid fa-chevron-right"></i></button>
+                
+                <!-- Dots -->
+                <div id="banner-dots" class="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2"></div>
+            </div>
+
+            <div id="user-hero" class="hidden mb-10 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-extrabold text-gray-800">Xin chào, <span id="home-username" class="text-blue-600">Bạn</span>! 👋</h1>
+                        <p class="text-gray-500 text-sm mt-1">Hôm nay là một ngày tuyệt vời để đọc sách.</p>
+                    </div>
+                    <button onclick="router('profile')" class="text-sm font-semibold text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100">Xem hồ sơ</button>
+                </div>
+            </div>
+
+            <!-- 2. HORIZONTAL SLIDER: SÁCH MỚI VỀ -->
+            <div class="mb-12">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                        <span class="bg-blue-600 text-white text-xs px-2 py-1 rounded mr-3">NEW</span>
+                        Sách Mới Về
+                    </h2>
+                    <button onclick="router('shop')" class="text-sm text-blue-600 font-bold hover:underline">Xem tất cả <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                </div>
+                <div class="relative">
+                    <div id="new-books-slider" class="flex overflow-x-auto space-x-6 pb-6 pt-2 snap-x-mandatory scrollbar-hide px-2">
+                        <!-- New Books Injected Here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Featured Books (Grid) -->
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-fire text-orange-500 mr-2"></i> Sách Nổi Bật</h2>
+            </div>
+            <div id="home-products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+        </section>
+
+        <!-- REVIEWS PAGE (3 Featured Reviews) -->
+        <section id="reviews" class="page-section hidden fade-in py-8">
+            <h2 class="text-3xl font-extrabold text-gray-800 mb-8 text-center">Góc Review Sách</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Review 1 -->
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition border border-gray-100">
+                    <img src="https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500" class="w-full h-48 object-cover">
+                    <div class="p-6">
+                        <span class="text-xs font-bold text-blue-600 uppercase mb-2 block">Văn học</span>
+                        <h3 class="text-xl font-bold mb-3 text-gray-800">Nhà Giả Kim: Hành trình tìm kiếm kho báu</h3>
+                        <p class="text-gray-600 text-sm line-clamp-3 mb-4">Cuốn sách không chỉ là một câu chuyện phiêu lưu mà còn là bài học sâu sắc về việc theo đuổi ước mơ...</p>
+                        <a href="#" class="text-blue-600 font-bold text-sm hover:underline">Đọc tiếp</a>
+                    </div>
+                </div>
+                <!-- Review 2 -->
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition border border-gray-100">
+                    <img src="https://images.unsplash.com/photo-1491841573634-28140fc7ced2?w=500" class="w-full h-48 object-cover">
+                    <div class="p-6">
+                        <span class="text-xs font-bold text-green-600 uppercase mb-2 block">Kỹ năng</span>
+                        <h3 class="text-xl font-bold mb-3 text-gray-800">Đắc Nhân Tâm: Nghệ thuật thu phục lòng người</h3>
+                        <p class="text-gray-600 text-sm line-clamp-3 mb-4">Những nguyên tắc vàng trong giao tiếp vẫn còn nguyên giá trị sau hàng thập kỷ...</p>
+                        <a href="#" class="text-blue-600 font-bold text-sm hover:underline">Đọc tiếp</a>
+                    </div>
+                </div>
+                <!-- Review 3 -->
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition border border-gray-100">
+                    <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=500" class="w-full h-48 object-cover">
+                    <div class="p-6">
+                        <span class="text-xs font-bold text-purple-600 uppercase mb-2 block">Công nghệ</span>
+                        <h3 class="text-xl font-bold mb-3 text-gray-800">Clean Code: Tư duy của lập trình viên ưu tú</h3>
+                        <p class="text-gray-600 text-sm line-clamp-3 mb-4">Mã sạch không chỉ là viết cho máy chạy, mà là viết cho người khác đọc hiểu...</p>
+                        <a href="#" class="text-blue-600 font-bold text-sm hover:underline">Đọc tiếp</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SERVICES PAGE -->
+        <section id="services" class="page-section hidden fade-in py-8">
+            <div class="text-center mb-12">
+                <h2 class="text-4xl font-extrabold text-gray-800 mb-4">Gói Hội Viên & Dịch Vụ</h2>
+                <p class="text-gray-600 max-w-2xl mx-auto">Nâng tầm trải nghiệm đọc sách của bạn với các gói ưu đãi đặc quyền từ BookWorld.</p>
+            </div>
+            <!-- Pricing Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
+                <!-- Free Tier -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 pricing-card transition duration-300 relative">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Người đọc phổ thông</h3>
+                    <div class="text-4xl font-extrabold text-gray-900 mb-6">0 đ<span class="text-base font-medium text-gray-500">/tháng</span></div>
+                    <ul class="space-y-4 mb-8 text-gray-600">
+                        <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i> Truy cập 1,000 sách miễn phí</li>
+                        <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i> Đọc thử chương đầu</li>
+                    </ul>
+                    <button onclick="router('register')" class="w-full py-3 bg-gray-100 text-gray-800 font-bold rounded-xl hover:bg-gray-200 transition">Đăng ký ngay</button>
+                </div>
+                <!-- VIP Tier -->
+                <div class="bg-blue-600 rounded-2xl shadow-xl p-8 pricing-card transition duration-300 relative transform md:-translate-y-4 text-white">
+                    <div class="absolute top-0 right-0 bg-yellow-400 text-blue-900 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">PHỔ BIẾN NHẤT</div>
+                    <h3 class="text-xl font-bold text-blue-100 mb-2">BookWorld VIP</h3>
+                    <div class="text-4xl font-extrabold mb-6">99k<span class="text-base font-medium text-blue-200">/tháng</span></div>
+                    <ul class="space-y-4 mb-8 text-blue-100">
+                        <li class="flex items-center"><i class="fa-solid fa-check text-yellow-300 mr-3"></i> Đọc không giới hạn</li>
+                        <li class="flex items-center"><i class="fa-solid fa-check text-yellow-300 mr-3"></i> Tải sách đọc Offline</li>
+                        <li class="flex items-center"><i class="fa-solid fa-check text-yellow-300 mr-3"></i> Không quảng cáo</li>
+                    </ul>
+                    <button onclick="showToast('Cảm ơn bạn đã quan tâm đến gói VIP!')" class="w-full py-3 bg-white text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition shadow-lg">Nâng cấp ngay</button>
+                </div>
+                <!-- Author Tier -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 pricing-card transition duration-300 relative">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Dành cho Tác giả</h3>
+                    <div class="text-4xl font-extrabold text-gray-900 mb-6">Hợp tác<span class="text-base font-medium text-gray-500">/Lợi nhuận cao</span></div>
+                    <ul class="space-y-4 mb-8 text-gray-600">
+                        <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i> Tự xuất bản sách</li>
+                        <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i> Nhận tới 70% doanh thu</li>
+                    </ul>
+                    <button onclick="router('contact')" class="w-full py-3 bg-blue-50 text-blue-600 font-bold rounded-xl hover:bg-blue-100 transition">Liên hệ xuất bản</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SHOP -->
+        <section id="shop" class="page-section hidden fade-in">
+            <div class="flex flex-col md:flex-row gap-8">
+                <aside class="w-full md:w-1/4 space-y-6">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 sticky top-24">
+                        <div class="mb-6 relative">
+                            <input type="text" placeholder="Tìm kiếm..." id="search-input" oninput="debounceSearch(this.value)" class="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                            <i class="fa-solid fa-search absolute left-3 top-3.5 text-gray-400"></i>
+                        </div>
+                        <div class="space-y-2">
+                            <p class="font-bold text-gray-800 text-sm uppercase tracking-wider mb-2">Danh mục</p>
+                            <div id="category-filter-list" class="space-y-1"></div>
+                        </div>
+                    </div>
+                </aside>
+                
+                <div class="w-full md:w-3/4">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold" id="shop-title">Cửa hàng sách</h2>
+                        <span class="text-sm text-gray-500" id="result-count">Đang tải...</span>
+                    </div>
+                    <div id="shop-products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DETAIL -->
+        <section id="detail" class="page-section hidden fade-in">
+            <button onclick="router('shop')" class="mb-4 text-gray-500 hover:text-blue-600 transition font-semibold"><i class="fa-solid fa-arrow-left mr-2"></i> Quay lại</button>
+            <div id="product-detail-content"></div>
+        </section>
+
+        <!-- PROFILE -->
+        <section id="profile" class="page-section hidden fade-in">
+             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <!-- Sidebar -->
+                <div class="md:col-span-1">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center sticky top-24">
+                        <img id="profile-avatar" src="" class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md mx-auto mb-4">
+                        <h2 id="profile-name" class="font-bold text-xl text-gray-800">User Name</h2>
+                        <p id="profile-email" class="text-sm text-gray-500 mb-6">email@example.com</p>
+                        <div class="space-y-2">
+                            <button onclick="switchProfileTab('orders')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-50 font-semibold text-gray-700 transition profile-tab-btn active-tab" data-tab="orders"><i class="fa-solid fa-receipt mr-2 text-blue-500"></i> Đơn hàng</button>
+                            <button onclick="switchProfileTab('wishlist')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-50 font-semibold text-gray-700 transition profile-tab-btn" data-tab="wishlist"><i class="fa-solid fa-heart mr-2 text-red-500"></i> Sách yêu thích</button>
+                            <button onclick="switchProfileTab('settings')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-50 font-semibold text-gray-700 transition profile-tab-btn" data-tab="settings"><i class="fa-solid fa-user-pen mr-2 text-gray-500"></i> Cập nhật</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Content -->
+                <div class="md:col-span-3">
+                    <div id="tab-orders" class="profile-tab-content"><h2 class="text-2xl font-bold mb-6">Lịch sử mua hàng</h2><div id="order-history-list" class="space-y-4"></div></div>
+                    <div id="tab-wishlist" class="profile-tab-content hidden"><h2 class="text-2xl font-bold mb-6">Tủ sách yêu thích</h2><div id="wishlist-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div></div>
+                    <div id="tab-settings" class="profile-tab-content hidden">
+                        <h2 class="text-2xl font-bold mb-6">Cài đặt</h2>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-lg">
+                            <form onsubmit="event.preventDefault(); updateProfile();" class="space-y-4">
+                                <div><label class="block text-sm font-bold mb-1">Họ tên</label><input type="text" id="edit-name" class="w-full border p-3 rounded-lg"></div>
+                                <div><label class="block text-sm font-bold mb-1">Avatar URL</label><input type="text" id="edit-avatar" class="w-full border p-3 rounded-lg"></div>
+                                <button class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700">Lưu thay đổi</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CART -->
+        <section id="cart" class="page-section hidden fade-in">
+            <h2 class="text-3xl font-bold mb-8">Giỏ hàng</h2>
+            <div class="flex flex-col lg:flex-row gap-8">
+                <div class="lg:w-2/3"><div id="cart-items-container" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"></div></div>
+                <div class="lg:w-1/3">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-24">
+                        <h3 class="font-bold text-lg mb-4">Thanh toán</h3>
+                        <div class="flex justify-between text-xl font-bold mb-6"><span>Tổng cộng:</span><span id="cart-total" class="text-blue-600">0 đ</span></div>
+                        <button onclick="router('checkout')" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700">Tiếp tục</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHECKOUT -->
+        <section id="checkout" class="page-section hidden fade-in">
+             <div class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+                <h2 class="text-2xl font-bold mb-6 text-center">Xác nhận thanh toán</h2>
+                <form onsubmit="event.preventDefault(); processCheckout();" class="space-y-4">
+                    <div class="bg-blue-50 p-4 rounded-lg mb-4">
+                        <h4 class="font-bold text-blue-800 text-sm mb-2">Tóm tắt đơn hàng</h4>
+                        <ul id="checkout-summary-list" class="text-sm text-gray-600 list-disc pl-5"></ul>
+                        <p class="font-bold text-right mt-2 text-blue-700" id="checkout-total">0 đ</p>
+                    </div>
+                    <div><label class="block font-bold text-sm mb-1">Địa chỉ nhận hàng</label><input required type="text" class="w-full border p-3 rounded-lg" id="checkout-address"></div>
+                    <button id="btn-pay" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700">Thanh toán ngay</button>
+                </form>
+             </div>
+        </section>
+
+        <!-- READER -->
+        <section id="reader" class="page-section hidden h-screen fixed inset-0 z-[60] reader-light flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200/20 bg-white/10 backdrop-blur-md absolute top-0 left-0 right-0 z-10">
+                <h1 class="font-bold truncate max-w-xs" id="reader-title">Tên sách</h1>
+                <div class="flex space-x-2">
+                    <button onclick="toggleReaderTheme()" class="w-8 h-8 rounded bg-gray-200/50 flex items-center justify-center"><i class="fa-solid fa-adjust"></i></button>
+                    <button onclick="closeReader()" class="w-8 h-8 rounded bg-red-500 text-white flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div id="reader-scroll-area" class="flex-grow overflow-y-auto px-4 pt-20 pb-10 scroll-smooth">
+                <div id="reader-content" class="max-w-2xl mx-auto prose prose-lg leading-loose p-4 text-justify font-serif"></div>
+            </div>
+        </section>
+
+        <!-- ADMIN -->
+        <section id="admin" class="page-section hidden fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Quản Trị Hệ Thống</h2>
+                <button onclick="openProductModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700"><i class="fa-solid fa-plus mr-2"></i> Thêm sách mới</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100"><p class="text-gray-500 text-sm font-bold">TỔNG DOANH THU</p><p class="text-2xl font-extrabold text-blue-600" id="admin-revenue">0 đ</p></div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100"><p class="text-gray-500 text-sm font-bold">TỔNG ĐƠN HÀNG</p><p class="text-2xl font-extrabold text-green-600" id="admin-orders-count">0</p></div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100"><p class="text-gray-500 text-sm font-bold">TỔNG SÁCH</p><p class="text-2xl font-extrabold text-purple-600" id="admin-products-count">0</p></div>
+            </div>
+            <div class="flex space-x-4 mb-6 border-b">
+                <button onclick="switchAdminTab('products')" class="pb-2 border-b-2 border-blue-600 font-bold text-blue-600 admin-tab-btn" data-tab="products">Sách</button>
+                <button onclick="switchAdminTab('orders')" class="pb-2 border-b-2 border-transparent hover:text-blue-600 text-gray-600 font-bold admin-tab-btn" data-tab="orders">Đơn hàng</button>
+            </div>
+            <div id="admin-tab-products" class="bg-white rounded-xl shadow border border-gray-100 overflow-x-auto"><table class="w-full text-left"><thead class="bg-gray-50 border-b text-sm text-gray-500 uppercase"><tr><th class="p-4">ID</th><th class="p-4">Tên sách</th><th class="p-4">Nhãn</th><th class="p-4">Giá</th><th class="p-4 text-right">Hành động</th></tr></thead><tbody id="admin-product-list" class="divide-y divide-gray-100"></tbody></table></div>
+            <div id="admin-tab-orders" class="bg-white rounded-xl shadow border border-gray-100 overflow-x-auto hidden"><table class="w-full text-left"><thead class="bg-gray-50 border-b text-sm text-gray-500 uppercase"><tr><th class="p-4">Mã</th><th class="p-4">User</th><th class="p-4">Tổng</th><th class="p-4">Trạng thái</th></tr></thead><tbody id="admin-order-list" class="divide-y divide-gray-100"></tbody></table></div>
+        </section>
+
+        <!-- LOGIN / REGISTER -->
+        <section id="login" class="page-section hidden fade-in">
+            <div class="flex justify-center items-center py-20">
+                <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
+                    <h2 class="text-3xl font-extrabold mb-6 text-center">Đăng nhập</h2>
+                    <form onsubmit="event.preventDefault(); handleLogin();" class="space-y-4">
+                        <input type="email" id="login-email" class="w-full border p-3 rounded-lg" placeholder="admin@book.com" value="admin@book.com">
+                        <input type="password" id="login-pass" class="w-full border p-3 rounded-lg" value="123456">
+                        <button class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700">Đăng nhập</button>
+                    </form>
+                    <div class="mt-4 text-center text-sm"><button onclick="router('register')" class="text-blue-600 font-bold hover:underline">Đăng ký ngay</button></div>
+                </div>
+            </div>
+        </section>
+        <section id="register" class="page-section hidden fade-in">
+            <div class="flex justify-center items-center py-20">
+                <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
+                    <h2 class="text-3xl font-extrabold mb-6 text-center">Đăng ký</h2>
+                    <form onsubmit="event.preventDefault(); handleRegister();" class="space-y-4">
+                        <input type="text" id="reg-name" class="w-full border p-3 rounded-lg" placeholder="Tên" required>
+                        <input type="email" id="reg-email" class="w-full border p-3 rounded-lg" placeholder="Email" required>
+                        <input type="password" id="reg-pass" class="w-full border p-3 rounded-lg" placeholder="Mật khẩu" required>
+                        <button class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700">Đăng ký</button>
+                    </form>
+                    <div class="mt-4 text-center text-sm"><button onclick="router('login')" class="text-blue-600 font-bold hover:underline">Quay lại</button></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODALS -->
+    <!-- Admin Product Modal -->
+    <div id="product-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center fade-in">
+        <div class="bg-white p-6 rounded-xl w-full max-w-lg shadow-2xl relative">
+            <button onclick="closeProductModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <h3 class="text-xl font-bold mb-4" id="modal-title">Thêm sách mới</h3>
+            <form onsubmit="event.preventDefault(); saveProduct();" class="space-y-3 max-h-[80vh] overflow-y-auto pr-2">
+                <input type="hidden" id="prod-id">
+                <div><label class="block text-sm font-bold mb-1">Tên sách</label><input type="text" id="prod-title" class="w-full border p-2 rounded" required></div>
+                <div><label class="block text-sm font-bold mb-1">Tác giả</label><input type="text" id="prod-author" class="w-full border p-2 rounded" required></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-bold mb-1">Giá (VNĐ)</label><input type="number" id="prod-price" class="w-full border p-2 rounded" required min="0"></div>
+                    <div><label class="block text-sm font-bold mb-1">Danh mục</label>
+                        <select id="prod-cat" class="w-full border p-2 rounded">
+                            <option value="Văn học">Văn học</option>
+                            <option value="Kinh tế">Kinh tế</option>
+                            <option value="Công nghệ">Công nghệ</option>
+                            <option value="Kỹ năng">Kỹ năng</option>
+                            <option value="Thiếu nhi">Thiếu nhi</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Labels Checkbox -->
+                <div class="flex space-x-4 py-2">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="prod-tag-new" class="w-4 h-4 text-blue-600 rounded">
+                        <span class="text-sm font-bold text-gray-700">Gắn nhãn "Mới"</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="prod-tag-hot" class="w-4 h-4 text-orange-500 rounded">
+                        <span class="text-sm font-bold text-gray-700">Gắn nhãn "Nổi bật"</span>
+                    </label>
+                </div>
+                <div><label class="block text-sm font-bold mb-1">Link Ảnh</label><input type="url" id="prod-image" class="w-full border p-2 rounded" required></div>
+                <div><label class="block text-sm font-bold mb-1">Mô tả</label><textarea id="prod-desc" rows="3" class="w-full border p-2 rounded"></textarea></div>
+                <button class="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 mt-2">Lưu</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Rating Modal -->
+    <div id="rating-modal" class="fixed inset-0 bg-black/50 z-[80] hidden flex items-center justify-center fade-in">
+        <div class="bg-white p-6 rounded-xl w-full max-w-sm shadow-2xl relative">
+            <button onclick="document.getElementById('rating-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-bold mb-4">Đánh giá sách</h3>
+            <div class="flex justify-center space-x-2 mb-4 text-3xl text-gray-300" id="star-container">
+                <i class="fa-solid fa-star cursor-pointer hover:text-yellow-400" onclick="setRating(1)"></i>
+                <i class="fa-solid fa-star cursor-pointer hover:text-yellow-400" onclick="setRating(2)"></i>
+                <i class="fa-solid fa-star cursor-pointer hover:text-yellow-400" onclick="setRating(3)"></i>
+                <i class="fa-solid fa-star cursor-pointer hover:text-yellow-400" onclick="setRating(4)"></i>
+                <i class="fa-solid fa-star cursor-pointer hover:text-yellow-400" onclick="setRating(5)"></i>
+            </div>
+            <textarea id="rating-comment" rows="3" class="w-full border p-2 rounded mb-4" placeholder="Chia sẻ cảm nhận của bạn..."></textarea>
+            <button onclick="submitRating()" class="w-full bg-blue-600 text-white font-bold py-2 rounded">Gửi đánh giá</button>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="fixed top-24 right-5 bg-white border-l-4 border-green-500 text-gray-800 px-6 py-4 rounded shadow-2xl hidden z-[90] flex items-center max-w-sm">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-green-500 text-xl mr-3"></i>
+        <div><h4 class="font-bold text-sm" id="toast-title">Thông báo</h4><p class="text-sm text-gray-600 mt-1" id="toast-message">Nội dung...</p></div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900 text-slate-300 py-12 mt-auto">
+        <div class="container mx-auto px-4 text-center md:text-left"><p class="text-sm opacity-80">&copy; 2023 BookWorld. All rights reserved.</p></div>
+    </footer>
+
+    <!-- JAVASCRIPT -->
+    <script>
+        // --- DATA & MOCK DB ---
+        // Enhanced book data with ratings and tags
+        const defaultBooks = [
+            { id: 1, title: "Nhà Giả Kim", author: "Paulo Coelho", price: 79000, category: "Văn học", image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400", desc: "Hành trình theo đuổi ước mơ.", tags: ['hot'], ratings: [{user: 'system', stars: 5, comment: 'Hay tuyệt'}] },
+            { id: 2, title: "Đắc Nhân Tâm", author: "Dale Carnegie", price: 85000, category: "Kỹ năng", image: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=400", desc: "Nghệ thuật thu phục lòng người.", tags: [], ratings: [] },
+            { id: 3, title: "Clean Code", author: "Robert C. Martin", price: 350000, category: "Công nghệ", image: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400", desc: "Sách gối đầu giường cho coder.", tags: ['new', 'hot'], ratings: [] },
+            { id: 4, title: "Kinh tế học hài hước", author: "Steven Levitt", price: 120000, category: "Kinh tế", image: "https://images.unsplash.com/photo-1592496431122-2349e0fbc666?w=400", desc: "Góc nhìn lạ về kinh tế.", tags: ['new'], ratings: [] },
+            { id: 5, title: "Dế Mèn Phiêu Lưu Ký", author: "Tô Hoài", price: 45000, category: "Thiếu nhi", image: "https://images.unsplash.com/photo-1629198688000-71f23e745b6e?w=400", desc: "Tuổi thơ dữ dội.", tags: [], ratings: [] },
+            { id: 6, title: "Sapiens", author: "Yuval Noah Harari", price: 200000, category: "Kinh tế", image: "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400", desc: "Lược sử loài người.", tags: ['hot'], ratings: [] },
+        ];
+
+        const bannerImages = [
+            "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1200&auto=format&fit=crop&q=60",
+            "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=1200&auto=format&fit=crop&q=60",
+            "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&auto=format&fit=crop&q=60"
+        ];
+
+        const DB = {
+            getProducts: () => JSON.parse(localStorage.getItem('bw_products')) || defaultBooks,
+            setProducts: (data) => localStorage.setItem('bw_products', JSON.stringify(data)),
+            getOrders: () => JSON.parse(localStorage.getItem('bw_orders')) || [],
+            setOrders: (data) => localStorage.setItem('bw_orders', JSON.stringify(data)),
+            getUser: () => JSON.parse(localStorage.getItem('bw_user')) || null,
+            setUser: (data) => localStorage.setItem('bw_user', JSON.stringify(data)),
+            getCart: () => JSON.parse(localStorage.getItem('bw_cart')) || [],
+            setCart: (data) => localStorage.setItem('bw_cart', JSON.stringify(data)),
+            getWishlist: () => JSON.parse(localStorage.getItem('bw_wishlist')) || [],
+            setWishlist: (data) => localStorage.setItem('bw_wishlist', JSON.stringify(data))
+        };
+
+        const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+
+        let products = DB.getProducts();
+        let cart = DB.getCart();
+        let wishlist = DB.getWishlist();
+        let user = DB.getUser();
+        let currentRatingBookId = null;
+        let currentRatingValue = 0;
+
+        function init() {
+            updateHeader();
+            renderCategories();
+            initBanner();
+            router('home');
+        }
+
+        function router(pageId) {
+            window.scrollTo(0, 0);
+            if(['checkout', 'profile'].includes(pageId) && !user) return showToast("Vui lòng đăng nhập", "error") || router('login');
+            if(pageId === 'admin' && (!user || user.email !== 'admin@book.com')) return showToast("Không có quyền Admin", "error");
+
+            document.querySelectorAll('.page-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(pageId).classList.remove('hidden');
+
+            if(pageId === 'home') renderHome();
+            if(pageId === 'shop') renderShop();
+            if(pageId === 'cart') renderCart();
+            if(pageId === 'admin') renderAdmin();
+            if(pageId === 'profile') renderProfile();
+            if(pageId === 'checkout') renderCheckout();
+        }
+
+        // --- BANNER SLIDER LOGIC ---
+        let bannerIdx = 0;
+        let bannerInterval;
+        function initBanner() {
+            const container = document.getElementById('banner-container');
+            const dots = document.getElementById('banner-dots');
+            
+            container.innerHTML = bannerImages.map((src, i) => `
+                <img src="${src}" class="banner-slide absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${i===0?'active':''}">
+            `).join('');
+            
+            dots.innerHTML = bannerImages.map((_, i) => `
+                <button onclick="setBanner(${i})" class="w-3 h-3 rounded-full bg-white/50 hover:bg-white transition banner-dot ${i===0?'bg-white':''}"></button>
+            `).join('');
+
+            startBannerAuto();
+        }
+        function startBannerAuto() { clearInterval(bannerInterval); bannerInterval = setInterval(() => changeBanner(1), 4000); }
+        function changeBanner(dir) {
+            const slides = document.querySelectorAll('.banner-slide');
+            const dots = document.querySelectorAll('.banner-dot');
+            slides[bannerIdx].classList.remove('active');
+            dots[bannerIdx].classList.remove('bg-white');
+            dots[bannerIdx].classList.add('bg-white/50');
+            
+            bannerIdx = (bannerIdx + dir + slides.length) % slides.length;
+            
+            slides[bannerIdx].classList.add('active');
+            dots[bannerIdx].classList.remove('bg-white/50');
+            dots[bannerIdx].classList.add('bg-white');
+        }
+        function setBanner(i) {
+            changeBanner(i - bannerIdx);
+            startBannerAuto();
+        }
+
+        // --- RENDERERS ---
+        function renderHome() {
+            // Horizontal Slider: New Books
+            const newBooks = products.filter(p => p.tags && p.tags.includes('new'));
+            const slider = document.getElementById('new-books-slider');
+            if(newBooks.length > 0) {
+                slider.innerHTML = newBooks.map(p => `
+                    <div class="snap-center shrink-0 w-48 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition" onclick="viewDetail(${p.id})">
+                        <div class="h-64 overflow-hidden relative">
+                            <img src="${p.image}" class="w-full h-full object-cover">
+                            <span class="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded">MỚI</span>
+                        </div>
+                        <div class="p-3">
+                            <h3 class="font-bold text-sm truncate">${p.title}</h3>
+                            <p class="text-blue-600 font-bold text-xs">${formatCurrency(p.price)}</p>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                slider.innerHTML = '<p class="text-gray-400 pl-4">Chưa có sách mới.</p>';
+            }
+
+            // Featured Grid
+            const hotBooks = products.filter(p => p.tags && p.tags.includes('hot'));
+            const displayBooks = hotBooks.length > 0 ? hotBooks : products.slice(0, 4);
+            const grid = document.getElementById('home-products-grid');
+            grid.innerHTML = displayBooks.map(createProductCard).join('');
+
+            // Greeting
+            if(user) {
+                document.getElementById('user-hero').classList.remove('hidden');
+                document.getElementById('home-username').innerText = user.name;
+            }
+        }
+
+        function createProductCard(p) {
+            const isWished = wishlist.includes(p.id);
+            // Calculate Rating
+            const avgRating = p.ratings && p.ratings.length ? (p.ratings.reduce((a,b)=>a+b.stars,0) / p.ratings.length).toFixed(1) : 0;
+            const starsHtml = avgRating > 0 ? `<i class="fa-solid fa-star text-yellow-400 text-xs mr-1"></i>${avgRating}` : '';
+
+            // Labels
+            let labels = '';
+            if(p.tags?.includes('new')) labels += `<span class="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded mr-1">NEW</span>`;
+            if(p.tags?.includes('hot')) labels += `<span class="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded">HOT</span>`;
+
+            return `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition group flex flex-col h-full relative">
+                    <button onclick="toggleWishlist(${p.id}, event)" class="absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center hover:bg-red-50 transition shadow-sm">
+                        <i class="${isWished ? 'fa-solid text-red-500' : 'fa-regular text-gray-400'} fa-heart"></i>
+                    </button>
+                    <div class="aspect-[2/3] overflow-hidden bg-gray-100 relative cursor-pointer" onclick="viewDetail(${p.id})">
+                        <img src="${p.image}" class="w-full h-full object-cover transition transform group-hover:scale-110 duration-500">
+                        <div class="absolute bottom-2 left-2 flex">${labels}</div>
+                    </div>
+                    <div class="p-4 flex-grow flex flex-col">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-[10px] font-bold text-gray-500 uppercase">${p.category}</span>
+                            <span class="text-xs font-bold text-gray-600 flex items-center">${starsHtml}</span>
+                        </div>
+                        <h3 class="font-bold text-gray-800 text-lg leading-tight mb-1 line-clamp-2 cursor-pointer hover:text-blue-600" onclick="viewDetail(${p.id})">${p.title}</h3>
+                        <p class="text-gray-500 text-sm mb-4">${p.author}</p>
+                        <div class="mt-auto flex justify-between items-center">
+                            <span class="font-extrabold text-gray-900">${formatCurrency(p.price)}</span>
+                            <button onclick="addToCart(${p.id})" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition flex items-center justify-center"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- RATING SYSTEM ---
+        function viewDetail(id) {
+            const p = products.find(i => i.id === id);
+            if(!p) return;
+            
+            // Calc stats
+            const ratings = p.ratings || [];
+            const avg = ratings.length ? (ratings.reduce((a,b)=>a+b.stars,0)/ratings.length).toFixed(1) : "0";
+            const userHasRated = user && ratings.find(r => r.user === user.email);
+
+            // Render Reviews List
+            const reviewsHtml = ratings.length > 0 
+                ? ratings.map(r => `
+                    <div class="border-b border-gray-100 py-3">
+                        <div class="flex items-center mb-1">
+                            <span class="font-bold text-sm mr-2">${r.user.split('@')[0]}</span>
+                            <span class="text-yellow-400 text-xs">${Array(r.stars).fill('<i class="fa-solid fa-star"></i>').join('')}</span>
+                        </div>
+                        <p class="text-gray-600 text-sm">${r.comment}</p>
+                    </div>
+                `).join('') 
+                : '<p class="text-gray-400 italic">Chưa có đánh giá nào.</p>';
+
+            const html = `
+                <div class="bg-white p-6 md:p-10 rounded-2xl shadow-lg border border-gray-100 flex flex-col md:flex-row gap-8">
+                    <div class="w-full md:w-1/3">
+                        <img src="${p.image}" class="w-full rounded-lg shadow-md mb-4">
+                    </div>
+                    <div class="w-full md:w-2/3">
+                        <span class="text-blue-600 font-bold text-sm uppercase tracking-widest">${p.category}</span>
+                        <h1 class="text-3xl md:text-4xl font-extrabold mt-2 mb-2 text-gray-900">${p.title}</h1>
+                        <p class="text-lg text-gray-600 mb-6">Tác giả: <span class="font-bold text-gray-800">${p.author}</span></p>
+                        
+                        <div class="flex items-center gap-4 mb-8">
+                            <span class="text-3xl font-bold text-red-600 bg-red-50 px-4 py-2 rounded-lg">${formatCurrency(p.price)}</span>
+                            <div class="flex items-center">
+                                <span class="text-2xl font-bold mr-2">${avg}</span>
+                                <div class="text-yellow-400 text-sm mr-2">
+                                    <i class="fa-solid fa-star"></i>
+                                </div>
+                                <span class="text-gray-400 text-sm">(${ratings.length} đánh giá)</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-4 mb-8">
+                            <button onclick="addToCart(${p.id})" class="flex-1 bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 shadow-lg">Thêm vào giỏ</button>
+                            <button onclick="openReader('${p.title}')" class="flex-1 border-2 border-gray-200 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-50">Đọc thử</button>
+                        </div>
+
+                        <!-- Rating Section -->
+                        <div class="border-t pt-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-lg">Đánh giá từ độc giả</h3>
+                                ${!userHasRated ? `<button onclick="openRatingModal(${p.id})" class="text-blue-600 text-sm font-bold hover:underline">Viết đánh giá</button>` : `<span class="text-green-600 text-xs font-bold"><i class="fa-solid fa-check mr-1"></i>Đã đánh giá</span>`}
+                            </div>
+                            <div class="max-h-60 overflow-y-auto pr-2">
+                                ${reviewsHtml}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('product-detail-content').innerHTML = html;
+            router('detail');
+        }
+
+        function openRatingModal(id) {
+            if(!user) return showToast("Vui lòng đăng nhập để đánh giá", "error");
+            currentRatingBookId = id;
+            currentRatingValue = 0;
+            document.getElementById('rating-comment').value = '';
+            setRating(0);
+            document.getElementById('rating-modal').classList.remove('hidden');
+        }
+
+        function setRating(val) {
+            currentRatingValue = val;
+            const stars = document.getElementById('star-container').children;
+            for(let i=0; i<5; i++) {
+                if(i < val) stars[i].classList.add('text-yellow-400');
+                else stars[i].classList.remove('text-yellow-400');
+            }
+        }
+
+        function submitRating() {
+            if(currentRatingValue === 0) return showToast("Vui lòng chọn số sao", "error");
+            const comment = document.getElementById('rating-comment').value;
+            const book = products.find(p => p.id === currentRatingBookId);
+            
+            if(!book.ratings) book.ratings = [];
+            book.ratings.push({
+                user: user.email,
+                stars: currentRatingValue,
+                comment: comment || "Không có bình luận"
+            });
+
+            DB.setProducts(products);
+            document.getElementById('rating-modal').classList.add('hidden');
+            showToast("Đánh giá thành công");
+            viewDetail(currentRatingBookId); // Reload detail to show new rating
+        }
+
+        // --- SHOP & ADMIN (Updated with Tags) ---
+        function renderCategories() {
+            const cats = [...new Set(products.map(p => p.category))];
+            const container = document.getElementById('category-filter-list');
+            container.innerHTML = `
+                <label class="flex items-center space-x-2 cursor-pointer text-sm text-gray-700 hover:text-blue-600"><input type="radio" name="cat" value="all" checked onchange="renderShop()" class="text-blue-600"> <span>Tất cả</span></label>
+                ${cats.map(c => `<label class="flex items-center space-x-2 cursor-pointer text-sm text-gray-700 hover:text-blue-600"><input type="radio" name="cat" value="${c}" onchange="renderShop()" class="text-blue-600"> <span>${c}</span></label>`).join('')}
+            `;
+        }
+        function renderShop() {
+            const grid = document.getElementById('shop-products-grid');
+            const keyword = document.getElementById('search-input').value.toLowerCase();
+            const checkedCat = document.querySelector('input[name="cat"]:checked')?.value || 'all';
+            let filtered = products.filter(p => (p.title.toLowerCase().includes(keyword) || p.author.toLowerCase().includes(keyword)) && (checkedCat === 'all' || p.category === checkedCat));
+            document.getElementById('result-count').innerText = `${filtered.length} kết quả`;
+            grid.innerHTML = filtered.length ? filtered.map(createProductCard).join('') : `<div class="col-span-full text-center py-10 text-gray-400">Không tìm thấy sách.</div>`;
+        }
+
+        // --- ADMIN ---
+        function renderAdmin() {
+            const orders = DB.getOrders();
+            document.getElementById('admin-revenue').innerText = formatCurrency(orders.reduce((s,o)=>s+o.total,0));
+            document.getElementById('admin-orders-count').innerText = orders.length;
+            document.getElementById('admin-products-count').innerText = products.length;
+
+            document.getElementById('admin-product-list').innerHTML = products.map(p => `
+                <tr class="hover:bg-gray-50 border-b">
+                    <td class="p-4 text-gray-500">#${p.id}</td>
+                    <td class="p-4 font-bold text-gray-800">${p.title}</td>
+                    <td class="p-4">
+                        ${p.tags?.includes('new') ? '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-1">New</span>' : ''}
+                        ${p.tags?.includes('hot') ? '<span class="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded">Hot</span>' : ''}
+                    </td>
+                    <td class="p-4 text-blue-600">${formatCurrency(p.price)}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="openProductModal(${p.id})" class="text-blue-600 mr-3"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteProduct(${p.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('admin-order-list').innerHTML = orders.reverse().map(o => `
+                <tr class="hover:bg-gray-50 border-b">
+                    <td class="p-4 text-blue-600 font-mono">${o.id}</td>
+                    <td class="p-4 text-sm">${o.userEmail}</td>
+                    <td class="p-4 font-bold">${formatCurrency(o.total)}</td>
+                    <td class="p-4"><span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">${o.status}</span></td>
+                </tr>
+            `).join('');
+        }
+        function openProductModal(id = null) {
+            document.getElementById('product-modal').classList.remove('hidden');
+            if(id) {
+                const p = products.find(i => i.id === id);
+                document.getElementById('modal-title').innerText = "Sửa sách";
+                document.getElementById('prod-id').value = p.id;
+                document.getElementById('prod-title').value = p.title;
+                document.getElementById('prod-author').value = p.author;
+                document.getElementById('prod-price').value = p.price;
+                document.getElementById('prod-cat').value = p.category;
+                document.getElementById('prod-image').value = p.image;
+                document.getElementById('prod-desc').value = p.desc || '';
+                document.getElementById('prod-tag-new').checked = p.tags?.includes('new');
+                document.getElementById('prod-tag-hot').checked = p.tags?.includes('hot');
+            } else {
+                document.getElementById('modal-title').innerText = "Thêm sách";
+                document.getElementById('prod-id').value = '';
+                document.querySelector('#product-modal form').reset();
+            }
+        }
+        function saveProduct() {
+            const id = document.getElementById('prod-id').value;
+            const tags = [];
+            if(document.getElementById('prod-tag-new').checked) tags.push('new');
+            if(document.getElementById('prod-tag-hot').checked) tags.push('hot');
+
+            const newBook = {
+                id: id ? parseInt(id) : Date.now(),
+                title: document.getElementById('prod-title').value,
+                author: document.getElementById('prod-author').value,
+                price: parseInt(document.getElementById('prod-price').value),
+                category: document.getElementById('prod-cat').value,
+                image: document.getElementById('prod-image').value,
+                desc: document.getElementById('prod-desc').value,
+                tags: tags,
+                ratings: id ? (products.find(p=>p.id==id).ratings || []) : []
+            };
+
+            if(id) products[products.findIndex(p => p.id == id)] = newBook;
+            else products.push(newBook);
+
+            DB.setProducts(products);
+            closeProductModal();
+            renderAdmin();
+            showToast("Đã lưu!");
+        }
+        function deleteProduct(id) {
+            if(confirm("Xóa sách này?")) {
+                products = products.filter(p => p.id !== id);
+                DB.setProducts(products);
+                renderAdmin();
+                showToast("Đã xóa");
+            }
+        }
+        function closeProductModal() { document.getElementById('product-modal').classList.add('hidden'); }
+        function switchAdminTab(tab) {
+            document.getElementById('admin-tab-products').classList.add('hidden');
+            document.getElementById('admin-tab-orders').classList.add('hidden');
+            document.getElementById(`admin-tab-${tab}`).classList.remove('hidden');
+        }
+
+        // --- AUTH & USER ---
+        function handleLogin() {
+            const email = document.getElementById('login-email').value;
+            if(!email) return showToast("Nhập email", "error");
+            user = { name: email.split('@')[0], email, avatar: `https://ui-avatars.com/api/?name=${email}&background=0D8ABC&color=fff` };
+            DB.setUser(user); updateHeader(); showToast("Đăng nhập thành công");
+            if(email === 'admin@book.com') router('admin'); else router('home');
+        }
+        function handleRegister() { handleLogin(); /* Simplified for demo */ }
+        function logout() { user = null; DB.setUser(null); updateHeader(); router('home'); }
+        function updateHeader() {
+            document.getElementById('cart-count').innerText = cart.reduce((s,i)=>s+i.qty,0);
+            document.getElementById('wishlist-badge').innerText = wishlist.length;
+            if(user) {
+                document.getElementById('auth-buttons').classList.add('hidden');
+                document.getElementById('user-menu').classList.remove('hidden');
+                document.getElementById('user-menu').classList.add('flex');
+                document.getElementById('username-display').innerText = user.name;
+                document.getElementById('user-email-display').innerText = user.email;
+                document.getElementById('user-avatar').src = user.avatar;
+            } else {
+                document.getElementById('auth-buttons').classList.remove('hidden');
+                document.getElementById('user-menu').classList.add('hidden');
+            }
+        }
+        function toggleUserDropdown() { document.getElementById('user-dropdown').classList.toggle('hidden'); }
+
+        // --- CART & OTHERS ---
+        function addToCart(id) {
+            const p = products.find(i => i.id === id);
+            const exist = cart.find(i => i.id === id);
+            if(exist) exist.qty++; else cart.push({...p, qty: 1});
+            DB.setCart(cart); updateHeader(); showToast("Đã thêm vào giỏ");
+        }
+        function renderCart() {
+            const container = document.getElementById('cart-items-container');
+            let total = 0;
+            if(!cart.length) container.innerHTML = `<div class="p-8 text-center text-gray-400">Giỏ hàng trống</div>`;
+            else container.innerHTML = cart.map(i => { total+=i.price*i.qty; return `
+                <div class="flex items-center p-4 border-b">
+                    <img src="${i.image}" class="w-16 h-20 object-cover rounded border">
+                    <div class="ml-4 flex-grow"><h4 class="font-bold">${i.title}</h4><p class="text-blue-600 text-sm">${formatCurrency(i.price)} x ${i.qty}</p></div>
+                    <button onclick="changeQty(${i.id}, -${i.qty})" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
+                </div>`; }).join('');
+            document.getElementById('cart-total').innerText = formatCurrency(total);
+        }
+        function changeQty(id, delta) {
+            const item = cart.find(i => i.id === id);
+            if(item) { item.qty+=delta; if(item.qty<=0) cart=cart.filter(i=>i.id!==id); DB.setCart(cart); renderCart(); updateHeader(); }
+        }
+        
+        // ADDED MISSING FUNCTION
+        function renderCheckout() {
+            if(cart.length === 0) return router('cart');
+            const summary = document.getElementById('checkout-summary-list');
+            let total = 0;
+            summary.innerHTML = cart.map(i => {
+                total += i.price * i.qty;
+                return `<li>${i.title} x ${i.qty}</li>`;
+            }).join('');
+            document.getElementById('checkout-total').innerText = formatCurrency(total);
+        }
+
+        async function processCheckout() {
+            if(!document.getElementById('checkout-address').value) return showToast("Nhập địa chỉ", "error");
+            document.getElementById('btn-pay').innerHTML = "Đang xử lý..."; await new Promise(r=>setTimeout(r,1000));
+            DB.setOrders([...DB.getOrders(), { id: 'DH'+Date.now(), date: new Date().toLocaleDateString('vi'), items: [...cart], total: cart.reduce((s,i)=>s+i.price*i.qty,0), status: 'Mới', userEmail: user.email }]);
+            cart=[]; DB.setCart(cart); updateHeader(); showToast("Thành công"); router('profile');
+        }
+        function toggleWishlist(id, e) {
+            e.stopPropagation();
+            if(!user) return showToast("Cần đăng nhập", "error");
+            const idx = wishlist.indexOf(id);
+            if(idx>-1) wishlist.splice(idx,1); else wishlist.push(id);
+            DB.setWishlist(wishlist); updateHeader(); renderHome();
+        }
+        function renderProfile() {
+            document.getElementById('profile-name').innerText = user.name;
+            document.getElementById('profile-email').innerText = user.email;
+            document.getElementById('profile-avatar').src = user.avatar;
+            const myOrders = DB.getOrders().filter(o=>o.userEmail===user.email).reverse();
+            document.getElementById('order-history-list').innerHTML = myOrders.length ? myOrders.map(o=>`<div class="border p-4 rounded bg-white shadow-sm flex justify-between"><div><span class="font-bold text-blue-600">${o.id}</span> <span class="text-xs text-gray-500">${o.date}</span></div><span class="font-bold">${formatCurrency(o.total)}</span></div>`).join('') : '<p class="text-gray-500">Chưa có đơn hàng.</p>';
+            
+            const wished = products.filter(p=>wishlist.includes(p.id));
+            document.getElementById('wishlist-grid').innerHTML = wished.length ? wished.map(createProductCard).join('') : '<p class="col-span-3 text-gray-500 text-center">Trống.</p>';
+        }
+        function switchProfileTab(t) { document.querySelectorAll('.profile-tab-content').forEach(e=>e.classList.add('hidden')); document.getElementById(`tab-${t}`).classList.remove('hidden'); }
+        
+        // --- READER ---
+        function openReader(title) {
+            document.getElementById('reader-title').innerText = title;
+            document.getElementById('reader').classList.remove('hidden');
+            document.getElementById('reader-content').innerHTML = `
+                <h2 class="text-3xl font-bold mb-6 text-center text-blue-900">${title}</h2>
+                <div class="space-y-4 text-justify">
+                    <p class="first-letter:text-5xl first-letter:font-bold first-letter:mr-2 first-letter:float-left">Đây là bản đọc thử. Cuốn sách này chứa đựng những tri thức quý giá...</p>
+                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+                    <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+                </div>
+                <div class="mt-10 text-center text-gray-500 italic border-t pt-4">Hết phần đọc thử. Vui lòng mua sách để đọc tiếp.</div>
+            `;
+        }
+        function closeReader() { document.getElementById('reader').classList.add('hidden'); }
+        function toggleReaderTheme() {
+            const el = document.getElementById('reader');
+            if(el.classList.contains('reader-light')) el.classList.replace('reader-light', 'reader-sepia');
+            else if(el.classList.contains('reader-sepia')) el.classList.replace('reader-sepia', 'reader-dark');
+            else el.classList.replace('reader-dark', 'reader-light');
+        }
+
+        // Init
+        let timeout;
+        function debounceSearch(val) { clearTimeout(timeout); timeout = setTimeout(() => renderShop(), 300); }
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
